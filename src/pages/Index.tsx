@@ -10,12 +10,19 @@ import { useToast } from '@/hooks/use-toast';
 import JSZip from 'jszip';
 
 const DEFAULT_CONFIG: CodebaseConfig = {
-  name: 'test_codebase',
-  totalModules: 100,
+  name: 'enterprise_system',
+  tiers: {
+    enterprise: { systems: 2 },
+    system: { count: 3, artifactType: 'static-lib', modulesPerArtifact: { min: 5, max: 15 } },
+    subsystem: { count: 4, artifactType: 'static-lib', modulesPerArtifact: { min: 3, max: 10 } },
+    component: { count: 5, artifactType: 'static-lib', modulesPerArtifact: { min: 2, max: 8 } },
+    module: { linesPerFile: { min: 50, max: 200 } }
+  },
   linesPerFile: { min: 50, max: 200 },
   buildSystem: 'make',
   includeVulnerabilities: false,
   dependencyComplexity: 'medium',
+  dependencyIssues: [],
 };
 
 const Index = () => {
@@ -29,7 +36,7 @@ const Index = () => {
     try {
       toast({
         title: "Generating Codebase",
-        description: `Creating ${config.totalModules} modules...`,
+        description: "Building multi-tier system...",
       });
 
       const codebase = generateCodebase(config);
@@ -37,45 +44,47 @@ const Index = () => {
       // Create ZIP file
       const zip = new JSZip();
       
-      // Add source files
-      const srcFolder = zip.folder('src');
-      codebase.modules.forEach(module => {
-        srcFolder?.file(`${module.name}.h`, module.headerContent);
-        srcFolder?.file(`${module.name}.c`, module.sourceContent);
-      });
-      
-      // Add build files
+      // Add all build files
       codebase.buildFiles.forEach(file => {
-        zip.file(file.name, file.content);
+        zip.file(file.path, file.content);
       });
       
       // Add README
       const readme = `# ${config.name}
 
-Generated C codebase for SBOM/CVE testing.
+Generated multi-tier C codebase for SBOM/CVE testing.
+
+## Architecture
+
+- **Systems:** ${config.tiers.enterprise.systems}
+- **Artifacts:** ${codebase.stats.totalArtifacts}
+  - Executables: ${codebase.stats.executables}
+  - Libraries: ${codebase.stats.libraries}
+- **Modules:** ${codebase.stats.totalModules}
+- **Lines of Code:** ${codebase.stats.totalLines.toLocaleString()}
 
 ## Build Instructions
 
 ${config.buildSystem === 'make' ? `\`\`\`bash
 make
-./test_program
 \`\`\`` : `\`\`\`bash
 mkdir build && cd build
 cmake ..
 make
-./test_program
 \`\`\``}
 
-## Statistics
+## Configuration
 
-- Total Modules: ${config.totalModules}
 - Build System: ${config.buildSystem.toUpperCase()}
 - Dependency Complexity: ${config.dependencyComplexity}
 - Includes Vulnerabilities: ${config.includeVulnerabilities ? 'Yes' : 'No'}
+${config.dependencyIssues.length > 0 ? `- Dependency Issues: ${config.dependencyIssues.join(', ')}` : ''}
 
 ## SBOM
 
 See \`sbom.json\` for the Software Bill of Materials in CycloneDX format.
+
+${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY_ISSUES.md\` for details on injected dependency problems.` : ''}
 `;
       zip.file('README.md', readme);
       
@@ -90,7 +99,7 @@ See \`sbom.json\` for the Software Bill of Materials in CycloneDX format.
       
       toast({
         title: "Success!",
-        description: "Codebase generated and downloaded",
+        description: `Generated ${codebase.stats.totalArtifacts} artifacts with ${codebase.stats.totalModules} modules`,
       });
     } catch (error) {
       toast({

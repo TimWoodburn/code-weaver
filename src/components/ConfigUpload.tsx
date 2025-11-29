@@ -34,7 +34,7 @@ export function ConfigUpload({ onConfigLoad }: ConfigUploadProps) {
       }
 
       // Validate config
-      if (!config.name || !config.totalModules) {
+      if (!config.name || !config.tiers) {
         throw new Error('Invalid config format');
       }
 
