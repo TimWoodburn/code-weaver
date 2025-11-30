@@ -1,7 +1,7 @@
 // path: src/components/DependencyGraph.tsx
 
-import { useMemo, useState } from "react";
-import { Canvas, Node, Edge, MarkerArrow } from "reaflow";
+import { useMemo, useState, useRef } from "react";
+import { Canvas, Node, Edge, MarkerArrow, CanvasRef } from "reaflow";
 import { GeneratedCodebase } from "@/types/config";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
   const [zoom, setZoom] = useState(1.5);
   const [filterTier, setFilterTier] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
-
+  const canvasRef = useRef<CanvasRef | null>(null);
   // Build nodes and edges for Reaflow
   const { nodes, edges } = useMemo(() => {
     const artifactMap = new Map(codebase.artifacts.map((a) => [a.id, a]));
@@ -90,9 +90,24 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
     [codebase, edges]
   );
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.2, 3));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.2, 0.3));
-  const handleZoomReset = () => setZoom(1.5);
+  const handleZoomIn = () => {
+    canvasRef.current?.zoomIn?.(0.2);
+    if (canvasRef.current) {
+      setZoom(canvasRef.current.zoom);
+    }
+  };
+
+  const handleZoomOut = () => {
+    canvasRef.current?.zoomOut?.(0.2);
+    if (canvasRef.current) {
+      setZoom(canvasRef.current.zoom);
+    }
+  };
+
+  const handleZoomReset = () => {
+    canvasRef.current?.setZoom?.(1.5);
+    setZoom(1.5);
+  };
 
   return (
     <div className="flex flex-col space-y-4">
@@ -168,16 +183,16 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
       <Card className="p-0 overflow-hidden border-2 h-[480px] md:h-[600px]">
         <div className="w-full h-full bg-background">
           <Canvas
+            ref={canvasRef}
             nodes={nodes}
             edges={edges}
             direction="RIGHT"
             fit={false}
-            zoom={zoom}
-            onZoomChange={setZoom}
-            pannable={true}
-            zoomable={true}
+            pannable
+            zoomable
             maxZoom={3}
             minZoom={0.3}
+            onZoomChange={(z) => setZoom(z)}
             node={(nodeProps) => {
               const nodeData = nodes.find((n) => n.id === nodeProps.id);
               return (
