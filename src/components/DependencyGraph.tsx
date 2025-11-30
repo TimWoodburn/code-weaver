@@ -1,23 +1,8 @@
-import { useEffect, useMemo } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  MarkerType,
-  NodeTypes,
-  Position,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
-import ELK from 'elkjs/lib/elk.bundled.js';
+import { useMemo } from 'react';
+import { Canvas, Node, Edge, MarkerArrow, Label } from 'reaflow';
 import { GeneratedCodebase } from '@/types/config';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-const elk = new ELK();
 
 interface DependencyGraphProps {
   codebase: GeneratedCodebase;
@@ -29,155 +14,39 @@ const nodeColors = {
   component: 'hsl(var(--accent))',
 };
 
-const CustomNode = ({ data }: any) => {
-  return (
-    <div className="px-4 py-2 rounded-lg border-2 bg-card text-card-foreground shadow-lg min-w-[160px] max-w-[200px]">
-      <div className="font-semibold text-sm truncate" title={data.fullName}>
-        {data.label}
-      </div>
-      <div className="text-xs text-muted-foreground capitalize">{data.tier}</div>
-      <div className="flex items-center gap-2 mt-1">
-        {data.moduleCount && (
-          <Badge variant="secondary" className="text-xs">
-            {data.moduleCount} modules
-          </Badge>
-        )}
-        <Badge variant="outline" className="text-xs">
-          {data.type}
-        </Badge>
-      </div>
-    </div>
-  );
-};
-
-const nodeTypes: NodeTypes = {
-  artifact: CustomNode,
-};
 
 export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  // Build nodes and edges for Reaflow
+  const { nodes, edges } = useMemo(() => {
+    const artifactMap = new Map(codebase.artifacts.map(a => [a.id, a]));
+    
+    const graphNodes = codebase.artifacts.map(artifact => ({
+      id: artifact.id,
+      text: artifact.name.replace(/_/g, ' ').split(' ').slice(-2).join(' '),
+      data: {
+        fullName: artifact.name,
+        tier: artifact.tier,
+        moduleCount: artifact.modules.length,
+        type: artifact.type,
+      },
+    }));
 
-  // Build graph data from codebase with ELK layout
-  useEffect(() => {
-    const layoutGraph = async () => {
-      const artifactMap = new Map(codebase.artifacts.map(a => [a.id, a]));
-      
-      // Create nodes
-      const elkNodes = codebase.artifacts.map(artifact => ({
-        id: artifact.id,
-        width: 180,
-        height: 80,
-      }));
-
-      // Create edges for all dependencies
-      const elkEdges: any[] = [];
-      const newEdges: Edge[] = [];
-      
-      codebase.artifacts.forEach(artifact => {
-        artifact.dependencies.forEach(depId => {
-          const depArtifact = artifactMap.get(depId);
-          
-          // Add to ELK layout only if valid dependency
-          if (depArtifact) {
-            elkEdges.push({
-              id: `${artifact.id}-${depId}`,
-              sources: [artifact.id],
-              targets: [depId],
-            });
-          }
-          
-          // Add to React Flow edges (including missing ones)
-          if (depArtifact) {
-            newEdges.push({
-              id: `${artifact.id}-${depId}`,
-              source: artifact.id,
-              target: depId,
-              type: 'smoothstep',
-              animated: false,
-              sourceHandle: 'right',
-              targetHandle: 'left',
-              style: { 
-                stroke: 'hsl(var(--primary))', 
-                strokeWidth: 2,
-              },
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                color: 'hsl(var(--primary))',
-                width: 20,
-                height: 20,
-              },
-            });
-          } else {
-            newEdges.push({
-              id: `${artifact.id}-${depId}-missing`,
-              source: artifact.id,
-              target: depId,
-              type: 'smoothstep',
-              animated: true,
-              style: { 
-                stroke: 'hsl(var(--destructive))', 
-                strokeWidth: 2, 
-                strokeDasharray: '5,5' 
-              },
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                color: 'hsl(var(--destructive))',
-              },
-              label: 'missing',
-              labelStyle: { fill: 'hsl(var(--destructive))', fontSize: 10 },
-            });
-          }
-        });
+    const graphEdges: any[] = [];
+    codebase.artifacts.forEach(artifact => {
+      artifact.dependencies.forEach(depId => {
+        const depArtifact = artifactMap.get(depId);
+        if (depArtifact) {
+          graphEdges.push({
+            id: `${artifact.id}-${depId}`,
+            from: artifact.id,
+            to: depId,
+          });
+        }
       });
+    });
 
-      // Use ELK to calculate layout
-      const graph = await elk.layout({
-        id: 'root',
-        layoutOptions: {
-          'elk.algorithm': 'layered',
-          'elk.direction': 'RIGHT',
-          'elk.spacing.nodeNode': '80',
-          'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-          'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-        },
-        children: elkNodes,
-        edges: elkEdges,
-      });
-
-      // Convert ELK layout to React Flow nodes
-      const newNodes: Node[] = graph.children?.map((node) => {
-        const artifact = artifactMap.get(node.id);
-        if (!artifact) return null;
-        
-        const tier = artifact.tier;
-        return {
-          id: node.id,
-          type: 'artifact',
-          position: { x: node.x ?? 0, y: node.y ?? 0 },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
-          data: {
-            label: artifact.name.replace(/_/g, ' ').split(' ').slice(-2).join(' '),
-            fullName: artifact.name,
-            tier: artifact.tier,
-            moduleCount: artifact.modules.length,
-            type: artifact.type,
-          },
-          style: {
-            borderColor: nodeColors[tier],
-            borderWidth: 3,
-          },
-        };
-      }).filter(Boolean) as Node[];
-
-      setNodes(newNodes);
-      setEdges(newEdges);
-    };
-
-    layoutGraph();
-  }, [codebase, setNodes, setEdges]);
+    return { nodes: graphNodes, edges: graphEdges };
+  }, [codebase]);
 
   const stats = useMemo(() => ({
     systems: codebase.enterprise.systems.length,
@@ -209,34 +78,60 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
 
       <Card className="p-0 overflow-hidden border-2">
         <div className="h-[700px] w-full bg-background">
-          <ReactFlow
+          <Canvas
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            attributionPosition="bottom-right"
-            minZoom={0.05}
-            maxZoom={1.5}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-              animated: false,
+            direction="RIGHT"
+            fit={true}
+            maxWidth={250}
+            maxHeight={100}
+            node={(nodeProps) => {
+              const nodeData = nodes.find(n => n.id === nodeProps.id);
+              return (
+                <Node
+                  {...nodeProps}
+                  style={{
+                    fill: 'hsl(var(--card))',
+                    stroke: nodeData?.data?.tier ? nodeColors[nodeData.data.tier as keyof typeof nodeColors] : 'hsl(var(--border))',
+                    strokeWidth: 3,
+                  }}
+                  label={
+                    <foreignObject width={nodeProps.width || 250} height={nodeProps.height || 100} x={0} y={0}>
+                      <div className="px-3 py-2 h-full flex flex-col justify-center">
+                        <div className="font-semibold text-xs truncate" title={nodeData?.data?.fullName}>
+                          {nodeData?.text}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground capitalize mt-0.5">
+                          {nodeData?.data?.tier}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          {nodeData?.data?.moduleCount && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                              {nodeData.data.moduleCount} modules
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[9px] px-1 py-0">
+                            {nodeData?.data?.type}
+                          </Badge>
+                        </div>
+                      </div>
+                    </foreignObject>
+                  }
+                />
+              );
             }}
-          >
-            <Background color="hsl(var(--muted))" gap={16} />
-            <Controls />
-            <MiniMap 
-              nodeColor={(node) => {
-                const tier = node.data.tier as keyof typeof nodeColors;
-                return nodeColors[tier] || 'hsl(var(--muted))';
-              }}
-              maskColor="hsl(var(--background) / 0.8)"
-              pannable
-              zoomable
-            />
-          </ReactFlow>
+            edge={(edgeProps) => (
+              <Edge
+                {...edgeProps}
+                style={{
+                  stroke: 'hsl(var(--primary))',
+                  strokeWidth: 2,
+                }}
+              >
+                <MarkerArrow style={{ fill: 'hsl(var(--primary))' }} />
+              </Edge>
+            )}
+          />
         </div>
       </Card>
 
