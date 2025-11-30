@@ -61,14 +61,16 @@ export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
     
     // Add source files
     artifact.modules.forEach(module => {
+      const ext = module.language === 'cpp' ? 'cpp' : 'c';
+      const headerExt = module.language === 'cpp' ? 'hpp' : 'h';
       buildFiles.push({
-        name: `${module.name}.h`,
-        path: `${artifact.path}/${module.name}.h`,
+        name: `${module.name}.${headerExt}`,
+        path: `${artifact.path}/${module.name}.${headerExt}`,
         content: module.headerContent
       });
       buildFiles.push({
-        name: `${module.name}.c`,
-        path: `${artifact.path}/${module.name}.c`,
+        name: `${module.name}.${ext}`,
+        path: `${artifact.path}/${module.name}.${ext}`,
         content: module.sourceContent
       });
     });

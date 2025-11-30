@@ -1,4 +1,4 @@
-import { Module, Artifact } from '@/types/config';
+import { Module, Artifact, SupportedLanguage } from '@/types/config';
 
 const CVE_PATTERNS = {
   buffer_overflow: `
@@ -25,6 +25,19 @@ const CVE_PATTERNS = {
 };
 
 export function generateModuleContent(
+  module: Module,
+  dependencyModules: Module[],
+  targetLines: number,
+  includeVuln: boolean
+) {
+  if (module.language === 'cpp') {
+    generateCppModuleContent(module, dependencyModules, targetLines, includeVuln);
+  } else {
+    generateCModuleContent(module, dependencyModules, targetLines, includeVuln);
+  }
+}
+
+function generateCModuleContent(
   module: Module,
   dependencyModules: Module[],
   targetLines: number,
@@ -130,11 +143,139 @@ ${CVE_PATTERNS[vulnType]}
   module.linesOfCode = source.split('\n').length;
 }
 
+function generateCppModuleContent(
+  module: Module,
+  dependencyModules: Module[],
+  targetLines: number,
+  includeVuln: boolean
+) {
+  // Generate header
+  const guard = `${module.name.toUpperCase()}_HPP`;
+  module.headerContent = `#ifndef ${guard}
+#define ${guard}
+
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
+// Module: ${module.name}
+// Path: ${module.path}
+
+namespace ${module.name.toLowerCase()} {
+
+class ${module.name} {
+public:
+    ${module.name}();
+    ~${module.name}();
+    
+    bool initialize();
+    bool process(const std::string& input);
+    void cleanup();
+    ${includeVuln ? `bool vulnerableFunction(const char* input);` : ''}
+
+private:
+    bool initialized_;
+    std::unique_ptr<std::vector<uint8_t>> data_;
+};
+
+} // namespace ${module.name.toLowerCase()}
+
+#endif // ${guard}
+`;
+
+  // Generate source
+  const ext = module.language === 'cpp' ? 'hpp' : 'h';
+  let source = `#include "${module.name}.${ext}"\n`;
+  
+  dependencyModules.forEach(dep => {
+    const depExt = dep.language === 'cpp' ? 'hpp' : 'h';
+    source += `#include "${dep.name}.${depExt}"\n`;
+  });
+  
+  source += `\n// Implementation for ${module.name}\n// Part of: ${module.path}\n\n`;
+  source += `namespace ${module.name.toLowerCase()} {\n\n`;
+  
+  source += `${module.name}::${module.name}() 
+    : initialized_(false), data_(nullptr) {
+}\n\n`;
+
+  source += `${module.name}::~${module.name}() {
+    cleanup();
+}\n\n`;
+
+  source += `bool ${module.name}::initialize() {
+    if (initialized_) return false;
+    try {
+        data_ = std::make_unique<std::vector<uint8_t>>(1024);
+        initialized_ = true;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Initialization failed: " << e.what() << std::endl;
+        return false;
+    }
+}\n\n`;
+
+  source += `bool ${module.name}::process(const std::string& input) {
+    if (!initialized_) return false;
+    try {
+        data_->clear();
+        data_->insert(data_->end(), input.begin(), input.end());
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Processing failed: " << e.what() << std::endl;
+        return false;
+    }
+}\n\n`;
+
+  source += `void ${module.name}::cleanup() {
+    if (data_) {
+        data_.reset();
+    }
+    initialized_ = false;
+}\n\n`;
+
+  if (includeVuln) {
+    const vulnType = Object.keys(CVE_PATTERNS)[
+      Math.floor(Math.random() * Object.keys(CVE_PATTERNS).length)
+    ] as keyof typeof CVE_PATTERNS;
+    
+    source += `bool ${module.name}::vulnerableFunction(const char* input) {
+${CVE_PATTERNS[vulnType]}
+    return true;
+}\n\n`;
+  }
+  
+  // Padding to reach target lines
+  const currentLines = source.split('\n').length;
+  const remainingLines = targetLines - currentLines;
+  
+  if (remainingLines > 0) {
+    const numHelpers = Math.ceil(remainingLines / 15);
+    for (let i = 0; i < numHelpers; i++) {
+      source += `// Helper function ${i}
+static int helperFunction${i}(int param) {
+    int result = param * 2 + ${i};
+    if (result > 100) {
+        result = result % 100;
+    }
+    return result;
+}\n\n`;
+    }
+  }
+  
+  source += `} // namespace ${module.name.toLowerCase()}\n`;
+  
+  module.sourceContent = source;
+  module.linesOfCode = source.split('\n').length;
+}
+
 export function generateArtifactMakefile(artifact: Artifact, allArtifacts: Artifact[]): string {
   const depArtifacts = artifact.dependencies
     .map(depId => allArtifacts.find(a => a.id === depId))
     .filter(a => a !== undefined) as Artifact[];
   
+  const hasCpp = artifact.modules.some(m => m.language === 'cpp');
   const objects = artifact.modules.map(m => `${m.name}.o`).join(' ');
   const target = artifact.type === 'executable' 
     ? artifact.name 
@@ -144,8 +285,11 @@ export function generateArtifactMakefile(artifact: Artifact, allArtifacts: Artif
   
   let makefile = `# Makefile for ${artifact.name} (${artifact.type})
 CC = gcc
+CXX = g++
 CFLAGS = -Wall -Wextra -fPIC -I.
+CXXFLAGS = -Wall -Wextra -fPIC -I. -std=c++17
 LDFLAGS = ${depArtifacts.map(d => `-L../${d.path} -l${d.name}`).join(' ')}
+${hasCpp ? 'LINKER = $(CXX)' : 'LINKER = $(CC)'}
 
 OBJECTS = ${objects}
 
@@ -155,12 +299,12 @@ all: ${target}
 
   if (artifact.type === 'executable') {
     makefile += `${target}: $(OBJECTS)
-\t$(CC) $(LDFLAGS) -o $@ $^
+\t$(LINKER) $(LDFLAGS) -o $@ $^
 
 `;
   } else if (artifact.type === 'shared-lib') {
     makefile += `${target}: $(OBJECTS)
-\t$(CC) -shared $(LDFLAGS) -o $@ $^
+\t$(LINKER) -shared $(LDFLAGS) -o $@ $^
 
 `;
   } else {
@@ -171,7 +315,11 @@ all: ${target}
   }
 
   artifact.modules.forEach(m => {
-    makefile += `${m.name}.o: ${m.name}.c ${m.name}.h\n\t$(CC) $(CFLAGS) -c ${m.name}.c\n\n`;
+    const ext = m.language === 'cpp' ? 'cpp' : 'c';
+    const headerExt = m.language === 'cpp' ? 'hpp' : 'h';
+    const compiler = m.language === 'cpp' ? '$(CXX)' : '$(CC)';
+    const flags = m.language === 'cpp' ? '$(CXXFLAGS)' : '$(CFLAGS)';
+    makefile += `${m.name}.o: ${m.name}.${ext} ${m.name}.${headerExt}\n\t${compiler} ${flags} -c ${m.name}.${ext}\n\n`;
   });
 
   makefile += `clean:\n\trm -f *.o ${target}\n\n.PHONY: all clean\n`;
