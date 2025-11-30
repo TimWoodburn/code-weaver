@@ -1,73 +1,96 @@
-# Welcome to your Lovable project
+# Code Weaver
 
-## Project info
+Repository: https://github.com/TimWoodburn/code-weaver
 
-**URL**: https://lovable.dev/projects/affe3532-a772-454f-b2ea-b83ac7923471
+A containerised Vite/React application packaged and deployed using Docker and Docker Compose.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Deployment
 
-**Use Lovable**
+The application can be deployed using Docker without requiring Node.js or any local build tools.  
+All setup, dependency installation, and building is handled inside the container.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/affe3532-a772-454f-b2ea-b83ac7923471) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+### 1. Clone the Repository
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone https://github.com/TimWoodburn/code-weaver.git
+cd code-weaver
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 2. Set Environment Variables
 
-**Use GitHub Codespaces**
+Create a `.env` file in the project root. You can copy the provided example:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+cp .env.example .env
+```
 
-## What technologies are used for this project?
+Edit `.env` if needed:
 
-This project is built with:
+```
+CODE_WEAVER_PORT=5173
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+This defines the host port used for accessing the application.
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/affe3532-a772-454f-b2ea-b83ac7923471) and click on Share -> Publish.
+### 3. Build and Run the Application
 
-## Can I connect a custom domain to my Lovable project?
+Use Docker Compose to build and start the container:
 
-Yes, you can!
+```bash
+docker compose up --build
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This process will:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Install all Node.js dependencies inside the build container  
+- Run the Vite production build  
+- Copy the built assets into an Nginx runtime image  
+- Expose the application on the port defined in `.env`  
+
+---
+
+### 4. Access the Application
+
+Once running, open:
+
+```
+http://localhost:${CODE_WEAVER_PORT}
+```
+
+Replace with the port value from your `.env`.
+
+---
+
+### 5. Updating After Code Changes
+
+To rebuild the app after modifying the source:
+
+```bash
+docker compose up --build
+```
+
+---
+
+### 6. Stop and Remove the Container
+
+```bash
+docker compose down
+```
+
+---
+
+### 7. Optional: Run Detached (Background Mode)
+
+```bash
+docker compose up --build -d
+```
+
+---
