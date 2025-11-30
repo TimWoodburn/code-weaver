@@ -1,5 +1,11 @@
 export type ArtifactType = 'executable' | 'static-lib' | 'shared-lib';
 export type DependencyIssueType = 'version-conflict' | 'circular' | 'missing' | 'transitive';
+export type SupportedLanguage = 'c' | 'cpp';
+
+export interface LanguageDistribution {
+  language: SupportedLanguage;
+  percentage: number;
+}
 
 export interface TierConfig {
   count: number;
@@ -14,6 +20,7 @@ export interface CodebaseConfig {
   dependencyComplexity: 'low' | 'medium' | 'high';
   linesPerFile: { min: number; max: number };
   dependencyIssues: DependencyIssueType[];
+  languageDistribution: LanguageDistribution[];
   
   // 5-tier hierarchy
   tiers: {
@@ -29,6 +36,7 @@ export interface Module {
   id: string;
   name: string;
   path: string;
+  language: SupportedLanguage;
   headerContent: string;
   sourceContent: string;
   dependencies: string[];

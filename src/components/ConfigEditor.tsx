@@ -3,8 +3,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { CodebaseConfig, ArtifactType } from '@/types/config';
+import { CodebaseConfig, ArtifactType, SupportedLanguage } from '@/types/config';
 import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ConfigEditorProps {
   config: CodebaseConfig;
@@ -25,6 +27,35 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
       }
     });
   };
+
+  const addLanguage = () => {
+    const usedPercentage = config.languageDistribution.reduce((sum, l) => sum + l.percentage, 0);
+    const remaining = 100 - usedPercentage;
+    if (remaining > 0) {
+      onChange({
+        ...config,
+        languageDistribution: [
+          ...config.languageDistribution,
+          { language: 'cpp', percentage: Math.min(remaining, 50) }
+        ]
+      });
+    }
+  };
+
+  const updateLanguage = (index: number, updates: { language?: SupportedLanguage; percentage?: number }) => {
+    const newDist = [...config.languageDistribution];
+    newDist[index] = { ...newDist[index], ...updates };
+    onChange({ ...config, languageDistribution: newDist });
+  };
+
+  const removeLanguage = (index: number) => {
+    onChange({
+      ...config,
+      languageDistribution: config.languageDistribution.filter((_, i) => i !== index)
+    });
+  };
+
+  const totalPercentage = config.languageDistribution.reduce((sum, l) => sum + l.percentage, 0);
 
   return (
     <div className="space-y-6">
@@ -136,6 +167,76 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
             onCheckedChange={(checked) => updateConfig({ includeVulnerabilities: checked })}
           />
         </div>
+      </Card>
+
+      <Card className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-terminal-cyan">Language Distribution</h3>
+          <Badge variant={totalPercentage === 100 ? "default" : "destructive"} className="text-xs">
+            {totalPercentage}% Total
+          </Badge>
+        </div>
+
+        <div className="space-y-3">
+          {config.languageDistribution.map((lang, index) => (
+            <div key={index} className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label className="text-sm">Language</Label>
+                <Select
+                  value={lang.language}
+                  onValueChange={(value: SupportedLanguage) => updateLanguage(index, { language: value })}
+                >
+                  <SelectTrigger className="mt-1 bg-code-bg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="c">C</SelectItem>
+                    <SelectItem value="cpp">C++</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex-1">
+                <Label className="text-sm">Percentage</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={lang.percentage}
+                  onChange={(e) => updateLanguage(index, { percentage: parseInt(e.target.value) || 0 })}
+                  className="mt-1 bg-code-bg"
+                />
+              </div>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => removeLanguage(index)}
+                disabled={config.languageDistribution.length === 1}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {totalPercentage < 100 && (
+          <Button
+            variant="outline"
+            onClick={addLanguage}
+            className="w-full"
+            size="sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Language
+          </Button>
+        )}
+
+        {totalPercentage !== 100 && (
+          <p className="text-xs text-destructive">
+            Total percentage must equal 100%
+          </p>
+        )}
       </Card>
 
       <Card className="p-6 space-y-6">

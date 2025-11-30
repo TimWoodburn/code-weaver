@@ -1,4 +1,18 @@
-import { CodebaseConfig, System, Subsystem, Component, Artifact, Module, ArtifactType } from '@/types/config';
+import { CodebaseConfig, System, Subsystem, Component, Artifact, Module, ArtifactType, SupportedLanguage } from '@/types/config';
+
+function selectLanguage(distribution: { language: SupportedLanguage; percentage: number }[]): SupportedLanguage {
+  const rand = Math.random() * 100;
+  let cumulative = 0;
+  
+  for (const dist of distribution) {
+    cumulative += dist.percentage;
+    if (rand < cumulative) {
+      return dist.language;
+    }
+  }
+  
+  return distribution[0]?.language || 'c';
+}
 
 export function generateHierarchy(config: CodebaseConfig) {
   const systems: System[] = [];
@@ -66,6 +80,7 @@ export function generateHierarchy(config: CodebaseConfig) {
             id: moduleId,
             name: moduleName,
             path: `${componentArtifact.path}/${moduleName}`,
+            language: selectLanguage(config.languageDistribution),
             headerContent: '',
             sourceContent: '',
             dependencies: [],

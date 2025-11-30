@@ -23,6 +23,10 @@ const DEFAULT_CONFIG: CodebaseConfig = {
   includeVulnerabilities: false,
   dependencyComplexity: 'medium',
   dependencyIssues: [],
+  languageDistribution: [
+    { language: 'c', percentage: 70 },
+    { language: 'cpp', percentage: 30 }
+  ],
 };
 
 const Index = () => {
@@ -50,9 +54,16 @@ const Index = () => {
       });
       
       // Add README
+      const langSummary = config.languageDistribution
+        .map(l => `${l.language.toUpperCase()}: ${l.percentage}%`)
+        .join(', ');
+      
       const readme = `# ${config.name}
 
-Generated multi-tier C codebase for SBOM/CVE testing.
+Generated multi-tier C/C++ codebase for SBOM/CVE testing.
+
+## Languages
+${langSummary}
 
 ## Architecture
 
@@ -136,10 +147,10 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
             <FileCode className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                C Codebase Generator
+                C/C++ Codebase Generator
               </h1>
               <p className="text-sm text-muted-foreground">
-                Generate stubbed C code for SBOM & CVE experimentation
+                Generate stubbed C/C++ code for SBOM & CVE experimentation
               </p>
             </div>
           </div>
@@ -191,9 +202,9 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
             <div className="bg-code-bg border border-border rounded p-4 text-xs space-y-2">
               <div className="text-terminal-green font-bold">Output Includes:</div>
               <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-                <li>C source & header files</li>
+                <li>C/C++ source & header files</li>
                 <li>Module dependency graph</li>
-                <li>Build system files</li>
+                <li>Build system files (Make)</li>
                 <li>CycloneDX SBOM (JSON)</li>
                 <li>README with build instructions</li>
               </ul>
