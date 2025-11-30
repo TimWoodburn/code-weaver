@@ -39,7 +39,7 @@ const Index = () => {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    
+
     try {
       toast({
         title: "Generating Codebase",
@@ -48,20 +48,20 @@ const Index = () => {
 
       const codebase = generateCodebase(config);
       setGeneratedCodebase(codebase);
-      
+
       // Create ZIP file
       const zip = new JSZip();
-      
+
       // Add all build files
       codebase.buildFiles.forEach(file => {
         zip.file(file.path, file.content);
       });
-      
+
       // Add README
       const langSummary = config.languageDistribution
         .map(l => `${l.language.toUpperCase()}: ${l.percentage}%`)
         .join(', ');
-      
+
       const readme = `# ${config.name}
 
 Generated multi-tier C/C++ codebase for SBOM/CVE testing.
@@ -99,10 +99,10 @@ ${config.dependencyIssues.length > 0 ? `- Dependency Issues: ${config.dependency
 
 See \`sbom.json\` for the Software Bill of Materials in CycloneDX format.
 
-${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY_ISSUES.md\` for details on injected dependency problems.` : ''}
+${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY_ISSUES.md\` for details on injected dependency problems.` : '' }
 `;
       zip.file('README.md', readme);
-      
+
       // Generate and download
       const blob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(blob);
@@ -111,7 +111,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
       a.download = `${config.name}.zip`;
       a.click();
       URL.revokeObjectURL(url);
-      
+
       toast({
         title: "Success!",
         description: `Generated ${codebase.stats.totalArtifacts} artifacts with ${codebase.stats.totalModules} modules`,
@@ -135,7 +135,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
     a.download = `${config.name}-config.json`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Config Exported",
       description: "Configuration saved as JSON",
@@ -161,8 +161,8 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex flex-col flex-1">
-        <Tabs defaultValue="config" className="w-full flex flex-col flex-1">
+      <main className="container mx-auto px-4 py-8 flex flex-col flex-1 min-h-0">
+        <Tabs defaultValue="config" className="w-full flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="config">
               <Code className="w-4 h-4 mr-2" />
@@ -183,7 +183,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
                     <Code className="inline w-5 h-5 mr-2" />
                     Configuration
                   </h2>
-                  
+
                   <div className="space-y-4">
                     <ConfigUpload onConfigLoad={setConfig} />
                     <ConfigEditor config={config} onChange={setConfig} />
@@ -194,7 +194,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
               {/* Right Column - Stats & Actions */}
               <div className="space-y-6">
                 <CodebaseStats config={config} />
-                
+
                 <div className="space-y-3">
                   <Button
                     onClick={handleGenerate}
@@ -205,7 +205,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
                     <Download className="w-4 h-4 mr-2" />
                     {isGenerating ? 'Generating...' : 'Generate & Download'}
                   </Button>
-                  
+
                   <Button
                     onClick={handleExportConfig}
                     variant="outline"
@@ -230,17 +230,28 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
             </div>
           </TabsContent>
 
-          <TabsContent value="graph" className="mt-6 flex-1 flex flex-col">
+          <TabsContent
+            value="graph"
+            className="mt-6 flex-1 flex flex-col min-h-0"
+          >
             {generatedCodebase && (
-              <div className="flex flex-col h-full">
+              <div className="flex flex-col flex-1 min-h-0">
                 <h2 className="text-lg font-semibold text-terminal-cyan mb-4">
                   <Network className="inline w-5 h-5 mr-2" />
                   Artifact Dependency Graph
                 </h2>
-                <DependencyGraph codebase={generatedCodebase} />
+
+                {/* ↓↓↓ CHANGE #1 — ensure this wrapper can shrink */}
+                <div className="flex-1 min-h-0">
+
+                  {/* ↓↓↓ CHANGE #2 — DependencyGraph already correct; no further changes here */}
+                  <DependencyGraph codebase={generatedCodebase} />
+
+                </div>
               </div>
             )}
           </TabsContent>
+
         </Tabs>
       </main>
     </div>
