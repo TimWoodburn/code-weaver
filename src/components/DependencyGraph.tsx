@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Canvas, Node, Edge, MarkerArrow, Label } from 'reaflow';
 import { GeneratedCodebase } from '@/types/config';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface DependencyGraphProps {
   codebase: GeneratedCodebase;
@@ -16,11 +19,24 @@ const nodeColors = {
 
 
 export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
+  const [zoom, setZoom] = useState(1);
+  const [filterTier, setFilterTier] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+
   // Build nodes and edges for Reaflow
   const { nodes, edges } = useMemo(() => {
     const artifactMap = new Map(codebase.artifacts.map(a => [a.id, a]));
     
-    const graphNodes = codebase.artifacts.map(artifact => ({
+    // Filter artifacts based on selections
+    const filteredArtifacts = codebase.artifacts.filter(artifact => {
+      const tierMatch = filterTier === 'all' || artifact.tier === filterTier;
+      const typeMatch = filterType === 'all' || artifact.type === filterType;
+      return tierMatch && typeMatch;
+    });
+
+    const filteredIds = new Set(filteredArtifacts.map(a => a.id));
+    
+    const graphNodes = filteredArtifacts.map(artifact => ({
       id: artifact.id,
       text: artifact.name.replace(/_/g, ' ').split(' ').slice(-2).join(' '),
       data: {
@@ -32,21 +48,24 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
     }));
 
     const graphEdges: any[] = [];
-    codebase.artifacts.forEach(artifact => {
+    filteredArtifacts.forEach(artifact => {
       artifact.dependencies.forEach(depId => {
-        const depArtifact = artifactMap.get(depId);
-        if (depArtifact) {
-          graphEdges.push({
-            id: `${artifact.id}-${depId}`,
-            from: artifact.id,
-            to: depId,
-          });
+        // Only show edge if both nodes are visible
+        if (filteredIds.has(depId)) {
+          const depArtifact = artifactMap.get(depId);
+          if (depArtifact) {
+            graphEdges.push({
+              id: `${artifact.id}-${depId}`,
+              from: artifact.id,
+              to: depId,
+            });
+          }
         }
       });
     });
 
     return { nodes: graphNodes, edges: graphEdges };
-  }, [codebase]);
+  }, [codebase, filterTier, filterType]);
 
   const stats = useMemo(() => ({
     systems: codebase.enterprise.systems.length,
@@ -55,8 +74,53 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
     totalDependencies: edges.length,
   }), [codebase, edges]);
 
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 3));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.3));
+  const handleZoomReset = () => setZoom(1);
+
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full space-y-4">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button onClick={handleZoomOut} size="sm" variant="outline">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground min-w-[60px] text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button onClick={handleZoomIn} size="sm" variant="outline">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleZoomReset} size="sm" variant="outline">
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Select value={filterTier} onValueChange={setFilterTier}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Filter by tier" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Tiers</SelectItem>
+            <SelectItem value="system">System</SelectItem>
+            <SelectItem value="subsystem">Subsystem</SelectItem>
+            <SelectItem value="component">Component</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Filter by type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="executable">Executable</SelectItem>
+            <SelectItem value="static-lib">Static Lib</SelectItem>
+            <SelectItem value="shared-lib">Shared Lib</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-2xl font-bold text-primary">{stats.systems}</div>
@@ -76,8 +140,8 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
         </Card>
       </div>
 
-      <Card className="p-0 overflow-hidden border-2">
-        <div className="h-[700px] w-full bg-background">
+      <Card className="p-0 overflow-hidden border-2 flex-1">
+        <div className="h-full w-full bg-background" style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}>
           <Canvas
             nodes={nodes}
             edges={edges}

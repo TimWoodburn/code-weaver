@@ -143,7 +143,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-6">
@@ -161,8 +161,8 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="config" className="w-full">
+      <main className="container mx-auto px-4 py-8 flex flex-col flex-1">
+        <Tabs defaultValue="config" className="w-full flex flex-col flex-1">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="config">
               <Code className="w-4 h-4 mr-2" />
@@ -230,9 +230,9 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
             </div>
           </TabsContent>
 
-          <TabsContent value="graph" className="mt-6">
+          <TabsContent value="graph" className="mt-6 flex-1 flex flex-col">
             {generatedCodebase && (
-              <div>
+              <div className="flex flex-col h-full">
                 <h2 className="text-lg font-semibold text-terminal-cyan mb-4">
                   <Network className="inline w-5 h-5 mr-2" />
                   Artifact Dependency Graph
