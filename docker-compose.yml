@@ -1,0 +1,12 @@
+# path: docker-compose.yml
+
+services:
+  code-weaver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code-weaver:latest
+    container_name: code-weaver
+    ports:
+      - "${CODE_WEAVER_PORT:-5173}:80"
+    restart: unless-stopped
