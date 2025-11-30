@@ -92,7 +92,7 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.2, 3));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.2, 0.3));
-  const handleZoomReset = () => setZoom(1);
+  const handleZoomReset = () => setZoom(1.5);
 
   return (
     <div className="flex flex-col space-y-4">
@@ -172,10 +172,12 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
             edges={edges}
             direction="RIGHT"
             fit={false}
-            className="w-full h-full"
-            style={{ width: "100%", height: "100%" }}
             zoom={zoom}
             onZoomChange={setZoom}
+            pannable={true}
+            zoomable={true}
+            maxZoom={3}
+            minZoom={0.3}
             node={(nodeProps) => {
               const nodeData = nodes.find((n) => n.id === nodeProps.id);
               return (
