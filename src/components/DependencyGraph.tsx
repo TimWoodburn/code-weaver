@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -12,9 +12,12 @@ import ReactFlow, {
   Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import ELK from 'elkjs/lib/elk.bundled.js';
 import { GeneratedCodebase } from '@/types/config';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+
+const elk = new ELK();
 
 interface DependencyGraphProps {
   codebase: GeneratedCodebase;
@@ -28,14 +31,21 @@ const nodeColors = {
 
 const CustomNode = ({ data }: any) => {
   return (
-    <div className="px-4 py-2 rounded-lg border-2 bg-card text-card-foreground shadow-lg min-w-[120px]">
-      <div className="font-semibold text-sm truncate">{data.label}</div>
-      <div className="text-xs text-muted-foreground">{data.tier}</div>
-      {data.moduleCount && (
-        <Badge variant="secondary" className="text-xs mt-1">
-          {data.moduleCount} modules
+    <div className="px-4 py-2 rounded-lg border-2 bg-card text-card-foreground shadow-lg min-w-[160px] max-w-[200px]">
+      <div className="font-semibold text-sm truncate" title={data.fullName}>
+        {data.label}
+      </div>
+      <div className="text-xs text-muted-foreground capitalize">{data.tier}</div>
+      <div className="flex items-center gap-2 mt-1">
+        {data.moduleCount && (
+          <Badge variant="secondary" className="text-xs">
+            {data.moduleCount} modules
+          </Badge>
+        )}
+        <Badge variant="outline" className="text-xs">
+          {data.type}
         </Badge>
-      )}
+      </div>
     </div>
   );
 };
@@ -48,77 +58,125 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Build graph data from codebase
+  // Build graph data from codebase with ELK layout
   useEffect(() => {
-    const newNodes: Node[] = [];
-    const newEdges: Edge[] = [];
-    const artifactMap = new Map(codebase.artifacts.map(a => [a.id, a]));
-
-    // Create nodes for each artifact
-    codebase.artifacts.forEach((artifact, index) => {
-      const tier = artifact.tier;
-      const column = tier === 'subsystem' ? 0 : tier === 'component' ? 1 : 2;
-      const row = index;
-
-      newNodes.push({
+    const layoutGraph = async () => {
+      const artifactMap = new Map(codebase.artifacts.map(a => [a.id, a]));
+      
+      // Create nodes
+      const elkNodes = codebase.artifacts.map(artifact => ({
         id: artifact.id,
-        type: 'artifact',
-        position: { 
-          x: column * 300 + Math.random() * 50, 
-          y: row * 150 + Math.random() * 50 
-        },
-        data: {
-          label: artifact.name.split('_').pop() || artifact.name,
-          tier: artifact.tier,
-          moduleCount: artifact.modules.length,
-          type: artifact.type,
-        },
-        style: {
-          borderColor: nodeColors[tier],
-          borderWidth: 2,
-        },
-      });
-    });
+        width: 180,
+        height: 80,
+      }));
 
-    // Create edges for dependencies
-    codebase.artifacts.forEach(artifact => {
-      artifact.dependencies.forEach(depId => {
-        const depArtifact = artifactMap.get(depId);
-        if (depArtifact) {
-          newEdges.push({
-            id: `${artifact.id}-${depId}`,
-            source: artifact.id,
-            target: depId,
-            type: 'smoothstep',
-            animated: false,
-            style: { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 2 },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: 'hsl(var(--muted-foreground))',
-            },
-          });
-        } else {
-          // Missing dependency - show in red
-          newEdges.push({
-            id: `${artifact.id}-${depId}`,
-            source: artifact.id,
-            target: depId,
-            type: 'smoothstep',
-            animated: true,
-            style: { stroke: 'hsl(var(--destructive))', strokeWidth: 2, strokeDasharray: '5,5' },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: 'hsl(var(--destructive))',
-            },
-            label: 'missing',
-            labelStyle: { fill: 'hsl(var(--destructive))', fontSize: 10 },
-          });
-        }
+      // Create edges for all dependencies
+      const elkEdges: any[] = [];
+      const newEdges: Edge[] = [];
+      
+      codebase.artifacts.forEach(artifact => {
+        artifact.dependencies.forEach(depId => {
+          const depArtifact = artifactMap.get(depId);
+          
+          // Add to ELK layout only if valid dependency
+          if (depArtifact) {
+            elkEdges.push({
+              id: `${artifact.id}-${depId}`,
+              sources: [artifact.id],
+              targets: [depId],
+            });
+          }
+          
+          // Add to React Flow edges (including missing ones)
+          if (depArtifact) {
+            newEdges.push({
+              id: `${artifact.id}-${depId}`,
+              source: artifact.id,
+              target: depId,
+              type: 'smoothstep',
+              animated: false,
+              sourceHandle: 'right',
+              targetHandle: 'left',
+              style: { 
+                stroke: 'hsl(var(--primary))', 
+                strokeWidth: 2,
+              },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: 'hsl(var(--primary))',
+                width: 20,
+                height: 20,
+              },
+            });
+          } else {
+            newEdges.push({
+              id: `${artifact.id}-${depId}-missing`,
+              source: artifact.id,
+              target: depId,
+              type: 'smoothstep',
+              animated: true,
+              style: { 
+                stroke: 'hsl(var(--destructive))', 
+                strokeWidth: 2, 
+                strokeDasharray: '5,5' 
+              },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: 'hsl(var(--destructive))',
+              },
+              label: 'missing',
+              labelStyle: { fill: 'hsl(var(--destructive))', fontSize: 10 },
+            });
+          }
+        });
       });
-    });
 
-    setNodes(newNodes);
-    setEdges(newEdges);
+      // Use ELK to calculate layout
+      const graph = await elk.layout({
+        id: 'root',
+        layoutOptions: {
+          'elk.algorithm': 'layered',
+          'elk.direction': 'RIGHT',
+          'elk.spacing.nodeNode': '80',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+          'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+        },
+        children: elkNodes,
+        edges: elkEdges,
+      });
+
+      // Convert ELK layout to React Flow nodes
+      const newNodes: Node[] = graph.children?.map((node) => {
+        const artifact = artifactMap.get(node.id);
+        if (!artifact) return null;
+        
+        const tier = artifact.tier;
+        return {
+          id: node.id,
+          type: 'artifact',
+          position: { x: node.x ?? 0, y: node.y ?? 0 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          data: {
+            label: artifact.name.replace(/_/g, ' ').split(' ').slice(-2).join(' '),
+            fullName: artifact.name,
+            tier: artifact.tier,
+            moduleCount: artifact.modules.length,
+            type: artifact.type,
+          },
+          style: {
+            borderColor: nodeColors[tier],
+            borderWidth: 3,
+          },
+        };
+      }).filter(Boolean) as Node[];
+
+      setNodes(newNodes);
+      setEdges(newEdges);
+    };
+
+    layoutGraph();
   }, [codebase, setNodes, setEdges]);
 
   const stats = useMemo(() => ({
@@ -150,7 +208,7 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
       </div>
 
       <Card className="p-0 overflow-hidden border-2">
-        <div className="h-[600px] w-full">
+        <div className="h-[700px] w-full bg-background">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -158,11 +216,16 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             fitView
+            fitViewOptions={{ padding: 0.2 }}
             attributionPosition="bottom-right"
-            minZoom={0.1}
-            maxZoom={2}
+            minZoom={0.05}
+            maxZoom={1.5}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              animated: false,
+            }}
           >
-            <Background />
+            <Background color="hsl(var(--muted))" gap={16} />
             <Controls />
             <MiniMap 
               nodeColor={(node) => {
@@ -170,6 +233,8 @@ export const DependencyGraph = ({ codebase }: DependencyGraphProps) => {
                 return nodeColors[tier] || 'hsl(var(--muted))';
               }}
               maskColor="hsl(var(--background) / 0.8)"
+              pannable
+              zoomable
             />
           </ReactFlow>
         </div>
