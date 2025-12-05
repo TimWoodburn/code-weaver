@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Code, FileCode, Table as TableIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfigUpload } from '@/components/ConfigUpload';
 import { ConfigEditor } from '@/components/ConfigEditor';
 import { CodebaseStats } from '@/components/CodebaseStats';
-import { ArtifactsTable } from '@/components/ArtifactsTable';
-import { CodebaseConfig, GeneratedCodebase, Artifact } from '@/types/config';
+import { CodebaseConfig } from '@/types/config';
 import { generateCodebase } from '@/utils/codeGenerator';
 import { useToast } from '@/hooks/use-toast';
+import { useGeneratedData } from '@/contexts/GeneratedDataContext';
 import JSZip from 'jszip';
 
 const DEFAULT_CONFIG: CodebaseConfig = {
@@ -44,8 +45,9 @@ const DEFAULT_CONFIG: CodebaseConfig = {
 const Index = () => {
   const [config, setConfig] = useState<CodebaseConfig>(DEFAULT_CONFIG);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedArtifacts, setGeneratedArtifacts] = useState<Artifact[] | null>(null);
   const { toast } = useToast();
+  const { artifacts, setArtifacts } = useGeneratedData();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -58,8 +60,8 @@ const Index = () => {
 
       const codebase = generateCodebase(config);
       
-      // Store artifacts for table display
-      setGeneratedArtifacts(codebase.artifacts);
+      // Store artifacts in context for table display
+      setArtifacts(codebase.artifacts);
 
       // Create ZIP file
       const zip = new JSZip();
@@ -212,6 +214,17 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
               >
                 Export Config
               </Button>
+
+              {artifacts && (
+                <Button
+                  onClick={() => navigate('/artifacts')}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  <TableIcon className="w-4 h-4 mr-2" />
+                  View Artifacts Table
+                </Button>
+              )}
             </div>
 
             {/* Quick Info */}
@@ -228,16 +241,6 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
           </div>
         </div>
 
-        {/* Generated Artifacts Table */}
-        {generatedArtifacts && (
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold text-terminal-cyan mb-4 flex items-center gap-2">
-              <TableIcon className="w-5 h-5" />
-              Generated Artifacts ({generatedArtifacts.length})
-            </h2>
-            <ArtifactsTable artifacts={generatedArtifacts} />
-          </div>
-        )}
       </main>
     </div>
   );
