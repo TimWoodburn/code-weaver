@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { Download, Code, FileCode, Network } from 'lucide-react';
+import { Download, Code, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfigUpload } from '@/components/ConfigUpload';
 import { ConfigEditor } from '@/components/ConfigEditor';
 import { CodebaseStats } from '@/components/CodebaseStats';
-import { DependencyGraph } from '@/components/DependencyGraph';
 import { CodebaseConfig, GeneratedCodebase } from '@/types/config';
 import { generateCodebase } from '@/utils/codeGenerator';
 import { useToast } from '@/hooks/use-toast';
 import JSZip from 'jszip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const DEFAULT_CONFIG: CodebaseConfig = {
   name: 'enterprise_system',
@@ -34,7 +32,6 @@ const DEFAULT_CONFIG: CodebaseConfig = {
 const Index = () => {
   const [config, setConfig] = useState<CodebaseConfig>(DEFAULT_CONFIG);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedCodebase, setGeneratedCodebase] = useState<GeneratedCodebase | null>(null);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -47,7 +44,6 @@ const Index = () => {
       });
 
       const codebase = generateCodebase(config);
-      setGeneratedCodebase(codebase);
 
       // Create ZIP file
       const zip = new JSZip();
@@ -143,7 +139,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-6">
@@ -161,98 +157,59 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex flex-col flex-1 min-h-0">
-        <Tabs defaultValue="config" className="w-full flex flex-col flex-1 min-h-0">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="config">
-              <Code className="w-4 h-4 mr-2" />
-              Configuration
-            </TabsTrigger>
-            <TabsTrigger value="graph" disabled={!generatedCodebase}>
-              <Network className="w-4 h-4 mr-2" />
-              Dependency Graph
-            </TabsTrigger>
-          </TabsList>
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left Column - Config */}
+          <div className="lg:col-span-2 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-terminal-cyan mb-4">
+                <Code className="inline w-5 h-5 mr-2" />
+                Configuration
+              </h2>
 
-          <TabsContent value="config" className="mt-6">
-            <div className="grid lg:grid-cols-3 gap-6">
-              {/* Left Column - Config */}
-              <div className="lg:col-span-2 space-y-6">
-                <div>
-                  <h2 className="text-lg font-semibold text-terminal-cyan mb-4">
-                    <Code className="inline w-5 h-5 mr-2" />
-                    Configuration
-                  </h2>
-
-                  <div className="space-y-4">
-                    <ConfigUpload onConfigLoad={setConfig} />
-                    <ConfigEditor config={config} onChange={setConfig} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column - Stats & Actions */}
-              <div className="space-y-6">
-                <CodebaseStats config={config} />
-
-                <div className="space-y-3">
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="w-full"
-                    size="lg"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    {isGenerating ? 'Generating...' : 'Generate & Download'}
-                  </Button>
-
-                  <Button
-                    onClick={handleExportConfig}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Export Config
-                  </Button>
-                </div>
-
-                {/* Quick Info */}
-                <div className="bg-code-bg border border-border rounded p-4 text-xs space-y-2">
-                  <div className="text-terminal-green font-bold">Output Includes:</div>
-                  <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-                    <li>C/C++ source & header files</li>
-                    <li>Module dependency graph</li>
-                    <li>Build system files (Make)</li>
-                    <li>CycloneDX SBOM (JSON)</li>
-                    <li>README with build instructions</li>
-                  </ul>
-                </div>
+              <div className="space-y-4">
+                <ConfigUpload onConfigLoad={setConfig} />
+                <ConfigEditor config={config} onChange={setConfig} />
               </div>
             </div>
-          </TabsContent>
+          </div>
 
-          <TabsContent
-            value="graph"
-            className="mt-6 flex-1 flex flex-col min-h-0"
-          >
-            {generatedCodebase && (
-              <div className="flex flex-col flex-1 min-h-0">
-                <h2 className="text-lg font-semibold text-terminal-cyan mb-4">
-                  <Network className="inline w-5 h-5 mr-2" />
-                  Artifact Dependency Graph
-                </h2>
+          {/* Right Column - Stats & Actions */}
+          <div className="space-y-6">
+            <CodebaseStats config={config} />
 
-                {/* ↓↓↓ CHANGE #1 — ensure this wrapper can shrink */}
-                <div className="flex-1 min-h-0">
+            <div className="space-y-3">
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="w-full"
+                size="lg"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {isGenerating ? 'Generating...' : 'Generate & Download'}
+              </Button>
 
-                  {/* ↓↓↓ CHANGE #2 — DependencyGraph already correct; no further changes here */}
-                  <DependencyGraph codebase={generatedCodebase} />
+              <Button
+                onClick={handleExportConfig}
+                variant="outline"
+                className="w-full"
+              >
+                Export Config
+              </Button>
+            </div>
 
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-        </Tabs>
+            {/* Quick Info */}
+            <div className="bg-code-bg border border-border rounded p-4 text-xs space-y-2">
+              <div className="text-terminal-green font-bold">Output Includes:</div>
+              <ul className="space-y-1 text-muted-foreground list-disc list-inside">
+                <li>C/C++ source & header files</li>
+                <li>Build system files (Make)</li>
+                <li>CycloneDX SBOM (JSON)</li>
+                <li>README with build instructions</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
