@@ -13,6 +13,20 @@ export interface TierConfig {
   modulesPerArtifact: { min: number; max: number };
 }
 
+export type CrossDepDirection = 'same-tier' | 'higher-tier' | 'both';
+
+export interface CrossDependencyConfig {
+  enabled: boolean;
+  probability: number; // 0-100 percentage
+  maxPerArtifact: number;
+  allowedTiers: {
+    system: boolean;
+    subsystem: boolean;
+    component: boolean;
+  };
+  direction: CrossDepDirection; // same-tier, higher-tier, or both
+}
+
 export interface CodebaseConfig {
   name: string;
   buildSystem: 'make' | 'cmake';
@@ -21,6 +35,7 @@ export interface CodebaseConfig {
   linesPerFile: { min: number; max: number };
   dependencyIssues: DependencyIssueType[];
   languageDistribution: LanguageDistribution[];
+  crossDependencies: CrossDependencyConfig;
   
   // 5-tier hierarchy
   tiers: {

@@ -124,6 +124,14 @@ export function generateHierarchy(config: CodebaseConfig) {
   return { systems, artifacts, modules };
 }
 
+import { CrossDependencyConfig } from '@/types/config';
+
+const TIER_ORDER: Record<string, number> = {
+  'system': 0,
+  'subsystem': 1,
+  'component': 2
+};
+
 export function generateDependencies(
   artifacts: Artifact[],
   complexity: 'low' | 'medium' | 'high'
@@ -141,6 +149,78 @@ export function generateDependencies(
     
     const numNewDeps = Math.floor(Math.random() * maxDeps);
     for (let i = 0; i < numNewDeps && potentialDeps.length > 0; i++) {
+      const depIndex = Math.floor(Math.random() * potentialDeps.length);
+      const dep = potentialDeps.splice(depIndex, 1)[0];
+      artifact.dependencies.push(dep.id);
+    }
+  });
+}
+
+export function generateCrossDependencies(
+  artifacts: Artifact[],
+  crossConfig: CrossDependencyConfig
+) {
+  if (!crossConfig.enabled) return;
+
+  // Group artifacts by their parent system
+  const artifactsBySystem: Record<string, Artifact[]> = {};
+  artifacts.forEach(artifact => {
+    const systemId = artifact.parentId?.split('_sub_')[0] || 'unknown';
+    if (!artifactsBySystem[systemId]) {
+      artifactsBySystem[systemId] = [];
+    }
+    artifactsBySystem[systemId].push(artifact);
+  });
+
+  const systemIds = Object.keys(artifactsBySystem);
+  if (systemIds.length < 2) return; // Need at least 2 systems for cross-dependencies
+
+  artifacts.forEach(artifact => {
+    // Check if this tier is allowed
+    if (!crossConfig.allowedTiers[artifact.tier]) return;
+
+    // Check probability
+    if (Math.random() * 100 > crossConfig.probability) return;
+
+    const artifactSystemId = artifact.parentId?.split('_sub_')[0] || 'unknown';
+    const artifactTierOrder = TIER_ORDER[artifact.tier];
+
+    // Find potential cross-dependencies from other systems
+    const potentialDeps = artifacts.filter(other => {
+      const otherSystemId = other.parentId?.split('_sub_')[0] || 'unknown';
+      
+      // Must be from a different system
+      if (otherSystemId === artifactSystemId) return false;
+      
+      // Can't already be a dependency
+      if (artifact.dependencies.includes(other.id)) return false;
+      
+      // Check tier restrictions
+      if (!crossConfig.allowedTiers[other.tier]) return false;
+
+      const otherTierOrder = TIER_ORDER[other.tier];
+      
+      // Apply direction rules (higher tier = lower number, e.g., system=0 is higher than component=2)
+      if (crossConfig.direction === 'same-tier') {
+        return artifactTierOrder === otherTierOrder;
+      } else if (crossConfig.direction === 'higher-tier') {
+        // Can only depend on higher tiers (lower tier order number)
+        return otherTierOrder < artifactTierOrder;
+      } else {
+        // 'both' - same tier or higher tier
+        return otherTierOrder <= artifactTierOrder;
+      }
+    });
+
+    if (potentialDeps.length === 0) return;
+
+    // Add cross-dependencies up to max
+    const numDeps = Math.min(
+      Math.floor(Math.random() * crossConfig.maxPerArtifact) + 1,
+      potentialDeps.length
+    );
+
+    for (let i = 0; i < numDeps; i++) {
       const depIndex = Math.floor(Math.random() * potentialDeps.length);
       const dep = potentialDeps.splice(depIndex, 1)[0];
       artifact.dependencies.push(dep.id);

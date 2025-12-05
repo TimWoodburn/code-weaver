@@ -1,5 +1,5 @@
 import { CodebaseConfig, GeneratedCodebase, Artifact, Module } from '@/types/config';
-import { generateHierarchy, generateDependencies, injectDependencyIssues } from './hierarchyGenerator';
+import { generateHierarchy, generateDependencies, generateCrossDependencies, injectDependencyIssues } from './hierarchyGenerator';
 import { generateModuleContent, generateArtifactMakefile, generateRootMakefile } from './codeContentGenerator';
 
 export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
@@ -8,6 +8,9 @@ export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
   
   // Generate dependencies between artifacts
   generateDependencies(artifacts, config.dependencyComplexity);
+  
+  // Generate cross-project dependencies
+  generateCrossDependencies(artifacts, config.crossDependencies);
   
   // Generate module dependencies
   modules.forEach((module, index) => {

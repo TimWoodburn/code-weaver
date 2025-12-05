@@ -27,6 +27,17 @@ const DEFAULT_CONFIG: CodebaseConfig = {
     { language: 'c', percentage: 70 },
     { language: 'cpp', percentage: 30 }
   ],
+  crossDependencies: {
+    enabled: false,
+    probability: 20,
+    maxPerArtifact: 3,
+    allowedTiers: {
+      system: true,
+      subsystem: true,
+      component: true,
+    },
+    direction: 'both',
+  },
 };
 
 const Index = () => {
