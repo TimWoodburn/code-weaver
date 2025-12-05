@@ -216,6 +216,7 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
                 <li>C/C++ source & header files</li>
                 <li>Build system files (Make)</li>
                 <li>CycloneDX SBOM (JSON)</li>
+                <li>Gephi graph (GEXF)</li>
                 <li>README with build instructions</li>
               </ul>
             </div>
