@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Download, Code, FileCode } from 'lucide-react';
+import { Download, Code, FileCode, Table as TableIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfigUpload } from '@/components/ConfigUpload';
 import { ConfigEditor } from '@/components/ConfigEditor';
 import { CodebaseStats } from '@/components/CodebaseStats';
-import { CodebaseConfig, GeneratedCodebase } from '@/types/config';
+import { ArtifactsTable } from '@/components/ArtifactsTable';
+import { CodebaseConfig, GeneratedCodebase, Artifact } from '@/types/config';
 import { generateCodebase } from '@/utils/codeGenerator';
 import { useToast } from '@/hooks/use-toast';
 import JSZip from 'jszip';
@@ -43,6 +44,7 @@ const DEFAULT_CONFIG: CodebaseConfig = {
 const Index = () => {
   const [config, setConfig] = useState<CodebaseConfig>(DEFAULT_CONFIG);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedArtifacts, setGeneratedArtifacts] = useState<Artifact[] | null>(null);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -55,6 +57,9 @@ const Index = () => {
       });
 
       const codebase = generateCodebase(config);
+      
+      // Store artifacts for table display
+      setGeneratedArtifacts(codebase.artifacts);
 
       // Create ZIP file
       const zip = new JSZip();
@@ -222,6 +227,17 @@ ${config.dependencyIssues.length > 0 ? `## Dependency Issues\n\nSee \`DEPENDENCY
             </div>
           </div>
         </div>
+
+        {/* Generated Artifacts Table */}
+        {generatedArtifacts && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-terminal-cyan mb-4 flex items-center gap-2">
+              <TableIcon className="w-5 h-5" />
+              Generated Artifacts ({generatedArtifacts.length})
+            </h2>
+            <ArtifactsTable artifacts={generatedArtifacts} />
+          </div>
+        )}
       </main>
     </div>
   );
