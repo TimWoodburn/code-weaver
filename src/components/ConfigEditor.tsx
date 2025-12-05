@@ -3,7 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { CodebaseConfig, ArtifactType, SupportedLanguage } from '@/types/config';
+import { CodebaseConfig, ArtifactType, SupportedLanguage, CrossDepDirection } from '@/types/config';
+import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -314,6 +315,109 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
             </div>
           </div>
         ))}
+      </Card>
+
+      <Card className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-terminal-cyan">Cross-Project Dependencies</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Dependencies between artifacts in different systems/subsystems
+            </p>
+          </div>
+          <Switch
+            checked={config.crossDependencies.enabled}
+            onCheckedChange={(checked) => updateConfig({
+              crossDependencies: { ...config.crossDependencies, enabled: checked }
+            })}
+          />
+        </div>
+
+        {config.crossDependencies.enabled && (
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-terminal-cyan">Probability</Label>
+                <Badge variant="outline">{config.crossDependencies.probability}%</Badge>
+              </div>
+              <Slider
+                value={[config.crossDependencies.probability]}
+                onValueChange={([value]) => updateConfig({
+                  crossDependencies: { ...config.crossDependencies, probability: value }
+                })}
+                min={0}
+                max={100}
+                step={5}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Chance each artifact gets cross-dependencies
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-terminal-cyan">Max Per Artifact</Label>
+              <Input
+                type="number"
+                min="1"
+                max="20"
+                value={config.crossDependencies.maxPerArtifact}
+                onChange={(e) => updateConfig({
+                  crossDependencies: { ...config.crossDependencies, maxPerArtifact: parseInt(e.target.value) || 1 }
+                })}
+                className="mt-2 bg-code-bg"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Maximum cross-dependencies per artifact
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-terminal-cyan">Direction</Label>
+              <Select
+                value={config.crossDependencies.direction}
+                onValueChange={(value: CrossDepDirection) => updateConfig({
+                  crossDependencies: { ...config.crossDependencies, direction: value }
+                })}
+              >
+                <SelectTrigger className="mt-2 bg-code-bg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="same-tier">Same Tier Only</SelectItem>
+                  <SelectItem value="higher-tier">Higher Tier Only</SelectItem>
+                  <SelectItem value="both">Both (Same & Higher)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Which tiers can be depended upon (lower never depends on higher)
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-terminal-cyan mb-3 block">Allowed Tiers</Label>
+              <div className="space-y-3">
+                {(['system', 'subsystem', 'component'] as const).map((tier) => (
+                  <div key={tier} className="flex items-center justify-between">
+                    <span className="text-sm capitalize">{tier}</span>
+                    <Switch
+                      checked={config.crossDependencies.allowedTiers[tier]}
+                      onCheckedChange={(checked) => updateConfig({
+                        crossDependencies: {
+                          ...config.crossDependencies,
+                          allowedTiers: { ...config.crossDependencies.allowedTiers, [tier]: checked }
+                        }
+                      })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Which tiers can have cross-dependencies
+              </p>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
