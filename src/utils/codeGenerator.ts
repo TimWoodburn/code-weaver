@@ -1,6 +1,7 @@
 import { CodebaseConfig, GeneratedCodebase, Artifact, Module } from '@/types/config';
 import { generateHierarchy, generateDependencies, generateCrossDependencies, injectDependencyIssues } from './hierarchyGenerator';
 import { generateModuleContent, generateArtifactMakefile, generateRootMakefile } from './codeContentGenerator';
+import { generateGEXF } from './gexfGenerator';
 
 export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
   // Generate hierarchy
@@ -86,6 +87,14 @@ export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
     name: 'sbom.json',
     path: 'sbom.json',
     content: JSON.stringify(sbom, null, 2)
+  });
+  
+  // Generate GEXF for Gephi
+  const gexf = generateGEXF(config.name, artifacts, systems);
+  buildFiles.push({
+    name: 'dependency-graph.gexf',
+    path: 'dependency-graph.gexf',
+    content: gexf
   });
   
   // Add dependency issues report
