@@ -2,6 +2,7 @@ import { CodebaseConfig, GeneratedCodebase, Artifact, Module } from '@/types/con
 import { generateHierarchy, generateDependencies, generateCrossDependencies, injectDependencyIssues } from './hierarchyGenerator';
 import { generateModuleContent, generateArtifactMakefile, generateRootMakefile } from './codeContentGenerator';
 import { generateGEXF } from './gexfGenerator';
+import { generateDOT } from './dotGenerator';
 
 export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
   // Generate hierarchy
@@ -95,6 +96,14 @@ export function generateCodebase(config: CodebaseConfig): GeneratedCodebase {
     name: 'dependency-graph.gexf',
     path: 'dependency-graph.gexf',
     content: gexf
+  });
+  
+  // Generate DOT for Graphviz
+  const dot = generateDOT(artifacts);
+  buildFiles.push({
+    name: 'dependency-graph.dot',
+    path: 'dependency-graph.dot',
+    content: dot
   });
   
   // Add dependency issues report
